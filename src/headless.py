@@ -112,7 +112,7 @@ class Headless:
         else:
             text = (
                 f"{text}"
-                "Mode: .nfo (Jellyfin)\n"
+                "Mode: .nfo (Kodi, Jellyfin, Emby)\n"
             )
 
         for line in text.split("\n"):

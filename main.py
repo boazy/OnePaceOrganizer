@@ -61,7 +61,7 @@ def main():
 
         parser.add_argument("--mode", help="Mode (0=.nfo, 1=Plex Username/Password, 2=Plex External Login, 3=Plex Auth Token)", default=None, type=int)
         parser.add_argument("--input-path", help="where to read unsorted .mkv/.mp4 files from", default=None)
-        parser.add_argument("--output-path", help="Where to put sorted .mkv/.mp4 files (and .nfo/posters if Jellyfin)", default=None)
+        parser.add_argument("--output-path", help="Where to put sorted .mkv/.mp4 files (and .nfo/posters in mode 0)", default=None)
         parser.add_argument("--cwd", help="Working directory", default=None)
         parser.add_argument("--config-file", help="Path to config.json or config.yml", default=None)
         parser.add_argument("--metadata-url", help="Metadata path", default=None)

@@ -134,7 +134,7 @@ class GUI(QMainWindow):
 
         self.method = Input(layout, "I'm watching via...", QComboBox())
         self.method.prop.addItems([
-            ".nfo (Jellyfin, Emby, etc.)",
+            ".nfo (Kodi, Jellyfin, Emby)",
             "Plex: Username and Password",
             "Plex: External Login",
             "Plex: Authorization Token"

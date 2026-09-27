@@ -166,7 +166,7 @@ class Console:
             else:
                 text = (
                     f"{text}"
-                    "Mode: .nfo (Jellyfin)\n"
+                    "Mode: .nfo (Kodi, Jellyfin, Emby)\n"
                 )
 
             yn = await button_dialog(

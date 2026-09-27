@@ -28,11 +28,13 @@ from multiprocessing import freeze_support
 from src import utils, store
 
 class OnePaceOrganizer:
+    SERIES_TITLE = "One Pace"
+
     def __init__(self):
         self.window_title = "One Pace Organizer"
 
         # Modes:
-        # 0: .nfo (Jellyfin, Emby)
+        # 0: .nfo (Kodi, Jellyfin, Emby)
         # 1: Plex: Username and Password
         # 2: Plex: External Login
         # 3: Plex: Authorization Token
@@ -1058,6 +1060,11 @@ class OnePaceOrganizer:
 
                 if self.plex_set_show_edits:
                     tvshow = self.store.tvshow
+                    if show.title != self.SERIES_TITLE:
+                        await utils.run(show.editTitle, self.SERIES_TITLE, locked=self.lockdata)
+
+                    if show.titleSort != self.SERIES_TITLE:
+                        await utils.run(show.editSortTitle, self.SERIES_TITLE, locked=self.lockdata)
 
                     if "tagline" in tvshow and tvshow["tagline"] != "" and show.tagline != tvshow["tagline"]:
                         self.logger.info(f"Set Tagline: {show.tagline} -> {tvshow['tagline']}")
@@ -1637,7 +1644,7 @@ class OnePaceOrganizer:
         return (src, dst, "", file_type, file_id)
 
     async def process_nfo(self, files):
-        tvshow = self.store.tvshow
+        tvshow = {**self.store.tvshow, "title": self.SERIES_TITLE, "sorttitle": self.SERIES_TITLE}
         tvshow_nfo = Path(self.output_path, "tvshow.nfo")
         root = ET.Element("tvshow")
 
@@ -1655,6 +1662,7 @@ class OnePaceOrganizer:
             else:
                 self.logger.debug(f"[{tvshow_nfo.name}] {k} = {v}")
                 ET.SubElement(root, str(k)).text = str(v)
+        ET.SubElement(root, "uniqueid", attrib={"type": "onepace", "default": "true"}).text = "onepace"
 
         _seasons = await self.store.get_arcs()
         for arc_info in _seasons:
@@ -1662,6 +1670,8 @@ class OnePaceOrganizer:
             text = arc_info["title"] if part == 0 else f"{part}. {arc_info['title']}"
             self.logger.debug(f"[{tvshow_nfo.name}] season {part} = {text}")
             ET.SubElement(root, "namedseason", attrib={"number": str(part)}).text = text
+            if arc_info.get("description"):
+                ET.SubElement(root, "seasonplot", attrib={"number": str(part)}).text = arc_info["description"]
 
         src = await utils.run(utils.find_from_list, self.base_path, [
             ("posters", "poster.*"),
@@ -1682,7 +1692,7 @@ class OnePaceOrganizer:
                 except:
                     self.logger.warning(f"Skipping downloading\n{traceback.format_exc()}")
 
-            if await utils.is_file(src):
+            if src is not None and await utils.is_file(src):
                 self.logger.info(f"Copying {src.name} to: {dst}")
                 await utils.copy_async(src, dst)
 
@@ -1830,9 +1840,15 @@ class OnePaceOrganizer:
                                     except Exception as e:
                                         self.logger.warning(f"Skipping downloading: {e}")
 
-                                if await utils.is_file(src):
+                                if src is not None and await utils.is_file(src):
                                     self.logger.info(f"Copying {src.name} to: {dst}")
                                     await utils.copy_async(src, dst)
+
+                            if await utils.is_file(dst):
+                                kodi_name = "season-specials-poster" if season == 0 else f"season{season:02d}-poster"
+                                kodi_poster = Path(self.output_path, f"{kodi_name}{dst.suffix}")
+                                if not await utils.is_file(kodi_poster):
+                                    await utils.copy_async(dst, kodi_poster)
 
                             if await utils.is_file(dst):
                                 art = ET.SubElement(root, "art")
@@ -1851,6 +1867,12 @@ class OnePaceOrganizer:
                             if src and not await utils.is_file(dst):
                                 self.logger.info(f"Copying {src.name} to: {dst}")
                                 await utils.copy_async(src, dst)
+
+                            if await utils.is_file(dst):
+                                kodi_name = "season-specials-fanart" if season == 0 else f"season{season:02d}-fanart"
+                                kodi_fanart = Path(self.output_path, f"{kodi_name}{dst.suffix}")
+                                if not await utils.is_file(kodi_fanart):
+                                    await utils.copy_async(dst, kodi_fanart)
 
                             if await utils.is_file(dst):
                                 if art is None:
@@ -1950,6 +1972,10 @@ class OnePaceOrganizer:
                     ET.SubElement(root, "showtitle").text = tvshow["title"]
                     ET.SubElement(root, "season").text = f"{season}"
                     ET.SubElement(root, "episode").text = f"{episode}"
+                    episode_id = f"s{season:02d}e{episode:02d}"
+                    if info.get("extended", False):
+                        episode_id += "-extended"
+                    ET.SubElement(root, "uniqueid", attrib={"type": "onepace", "default": "true"}).text = episode_id
                     ET.SubElement(root, "customrating").text = info["rating"] if "rating" in info else tvshow["customrating"]
 
                     desc_str = str(info.get("description", ""))
@@ -1971,7 +1997,8 @@ class OnePaceOrganizer:
                     ET.SubElement(root, "plot").text = f"{desc_str}{manga_str}{anime_str}"
 
                     if "duration" in info and isinstance(info["duration"], int) and info["duration"] > 0:
-                        ET.SubElement(root, "runtime").text = str(info["duration"])
+                        # Source metadata stores seconds; NFO readers expect whole minutes.
+                        ET.SubElement(root, "runtime").text = str(max(1, (info["duration"] + 30) // 60))
 
                     if "released" in info:
                         if isinstance(info["released"], str):
