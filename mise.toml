@@ -1,0 +1,15 @@
+[tools]
+python = "3.14"
+uv = "latest"
+
+[tasks.tui]
+description = "TUI"
+run = "uv run main.py console"
+
+[tasks.headless]
+description = "Headless"
+run = "uv run main.py headless"
+
+[deps]
+uv = { auto = true }
+git-submodule = { auto = true }
