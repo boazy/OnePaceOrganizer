@@ -8,6 +8,8 @@ Kodi reads episode numbers from video filenames, not NFO files. The default file
 
 Re-run the program after new releases. Existing NFO files are preserved unless `overwrite_nfo` is enabled. Enable it when updating a library that already has NFO files titled One Piece, then refresh the existing Kodi or Jellyfin library entries to reload the changed files.
 
+On a rerun, files named with the default `One Pace - SxxEyy - Title.mkv` pattern are matched by their season, episode, and current title (including `(Extended)`). They do not need to match a current release hash. Files with changed or custom titles still use the original hash lookup and may be skipped. When only the name matches, the organizer uses the latest non-archived release's metadata for that episode; its release date or runtime may differ from an older cut.
+
 The organizer does not require a complete collection. For a newly released episode without published metadata, it attempts to read metadata from the MKV.
 
 ## Metadata

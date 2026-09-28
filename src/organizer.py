@@ -873,6 +873,7 @@ class OnePaceOrganizer:
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.workers) as executor:
             crc_pattern = re.compile(r'\[([A-Fa-f0-9]{8})\](?=\.(mkv|mp4))')
             fname_pattern = re.compile(r'\[(?:One Pace)?\]\[\d+(?:[-,]\d+)*\]\s+(.+?)(?:\s+(\d{2,})(?:\s+(.+?))?)?\s+\[\d+p\](?:\[[^\]]+\])*\[([A-Fa-f0-9]{8})\]\.(?:mkv|mp4)')
+            organized_pattern = re.compile(r'^One Pace - S(?P<arc>\d{2,})E(?P<episode>\d{2,}) - (?P<title>.+)\.(?:mkv|mp4)$')
             filelist = []
 
             async for file in utils.iter(self.input_path.rglob, "*.[mM][kK][vV]", case_sensitive=False, recurse_symlinks=True):
@@ -903,6 +904,28 @@ class OnePaceOrganizer:
                         num_found += 1
                         results.append((0, episode_id, file, None))
                         await utils.run_func(self.progress_bar_func, int((num_found / filelist_total) * 100) if filelist_total > 0 else 0)
+                        continue
+
+                match = organized_pattern.fullmatch(file_name)
+                if match and self.opened:
+                    versions = await self.store.get_episodes(
+                        arc=int(match["arc"]), episode=int(match["episode"]),
+                        with_descriptions=True, exclude_archived=False
+                    )
+                    episode_id = None
+                    for version in versions:
+                        title = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "", version["title"])
+                        if version["extended"]:
+                            title += " (Extended)"
+                        if title == match["title"]:
+                            episode_id = version["id"]
+                            if not version["archived"]:
+                                break
+
+                    if episode_id is not None:
+                        num_found += 1
+                        results.append((0, episode_id, file, None))
+                        await utils.run_func(self.progress_bar_func, int((num_found / filelist_total) * 100))
                         continue
 
                 match = await utils.run(fname_pattern.match, file_name, loop=loop)
